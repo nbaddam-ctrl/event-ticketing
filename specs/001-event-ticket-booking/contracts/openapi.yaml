@@ -1,0 +1,499 @@
+openapi: 3.0.3
+info:
+  title: Event Ticket Booking API
+  version: 1.0.0
+  description: Contract-first API for attendee booking, organizer management, waitlist, discounts, and refunds.
+servers:
+  - url: https://api.example.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Events
+  - name: Bookings
+  - name: Waitlist
+  - name: Discounts
+  - name: Organizer
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and obtain JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /organizer/requests:
+    post:
+      tags: [Organizer]
+      summary: Request organizer role
+      responses:
+        '202':
+          description: Request accepted (pending approval)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/organizer-requests/{requestId}/decision:
+    post:
+      tags: [Organizer]
+      summary: Approve or reject organizer role request (admin only)
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizerDecisionRequest'
+      responses:
+        '200':
+          description: Organizer request decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizerDecisionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /events:
+    get:
+      tags: [Events]
+      summary: Browse published events
+      security: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+    post:
+      tags: [Events]
+      summary: Create event (approved organizer/admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Organizer not approved or insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /events/{eventId}:
+    get:
+      tags: [Events]
+      summary: Get event details with ticket tiers
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetailsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /events/{eventId}/cancel:
+    post:
+      tags: [Events]
+      summary: Cancel event and trigger full refunds
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '202':
+          description: Cancellation accepted, refund workflow started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventCancellationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /bookings:
+    post:
+      tags: [Bookings]
+      summary: Purchase tickets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          description: Booking confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '400':
+          description: Validation error (including multi-code attempt)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Entire purchase rejected due to insufficient inventory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /waitlist:
+    post:
+      tags: [Waitlist]
+      summary: Join waitlist for sold-out tier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinWaitlistRequest'
+      responses:
+        '201':
+          description: Waitlist entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistEntryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /discounts/validate:
+    post:
+      tags: [Discounts]
+      summary: Validate single discount code for checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateDiscountRequest'
+      responses:
+        '200':
+          description: Discount valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateDiscountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    EventId:
+      in: path
+      name: eventId
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        displayName: { type: string, minLength: 1 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user:
+          $ref: '#/components/schemas/UserSummary'
+    UserSummary:
+      type: object
+      required: [id, email, roles]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        roles:
+          type: array
+          items: { type: string, enum: [attendee, organizer, admin] }
+        organizerApprovalStatus:
+          type: string
+          enum: [none, pending, approved, rejected]
+    OrganizerRequestResponse:
+      type: object
+      required: [requestId, status]
+      properties:
+        requestId: { type: string, format: uuid }
+        status: { type: string, enum: [pending] }
+    OrganizerDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected]
+        reason:
+          type: string
+          nullable: true
+    OrganizerDecisionResponse:
+      type: object
+      required: [requestId, status]
+      properties:
+        requestId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [approved, rejected]
+        decidedAt: { type: string, format: date-time }
+    CreateEventRequest:
+      type: object
+      required: [title, venueName, startAt, endAt, timezone, tiers]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        venueName: { type: string }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        timezone: { type: string }
+        tiers:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [name, priceMinor, currency, capacityLimit]
+            properties:
+              name: { type: string }
+              priceMinor: { type: integer, minimum: 0 }
+              currency: { type: string }
+              capacityLimit: { type: integer, minimum: 1 }
+    Event:
+      type: object
+      required: [id, title, venueName, startAt, endAt, timezone, status]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        venueName: { type: string }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        timezone: { type: string }
+        status: { type: string, enum: [draft, published, cancelled] }
+    EventListResponse:
+      type: object
+      required: [items, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer, nullable: true }
+    EventDetailsResponse:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          required: [tiers]
+          properties:
+            tiers:
+              type: array
+              items:
+                $ref: '#/components/schemas/TicketTier'
+    TicketTier:
+      type: object
+      required: [id, name, priceMinor, currency, capacityLimit, remainingQuantity]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        priceMinor: { type: integer }
+        currency: { type: string }
+        capacityLimit: { type: integer }
+        remainingQuantity: { type: integer }
+    EventCancellationResponse:
+      type: object
+      required: [eventId, status, refundCount]
+      properties:
+        eventId: { type: string, format: uuid }
+        status: { type: string, enum: [cancelled] }
+        refundCount: { type: integer, minimum: 0 }
+    CreateBookingRequest:
+      type: object
+      required: [eventId, ticketTierId, quantity]
+      properties:
+        eventId: { type: string, format: uuid }
+        ticketTierId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1 }
+        discountCode:
+          type: string
+          description: Single code only; multiple code submission is invalid.
+    BookingResponse:
+      type: object
+      required: [id, status, quantity, total_paid_minor]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        ticket_tier_id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, confirmed, cancelled, refunded] }
+        quantity: { type: integer }
+        unit_price_minor: { type: integer }
+        subtotal_minor: { type: integer }
+        discount_code_id: { type: string, format: uuid, nullable: true }
+        discount_amount_minor: { type: integer }
+        total_paid_minor: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    JoinWaitlistRequest:
+      type: object
+      required: [eventId, ticketTierId, requestedQuantity]
+      properties:
+        eventId: { type: string, format: uuid }
+        ticketTierId: { type: string, format: uuid }
+        requestedQuantity: { type: integer, minimum: 1 }
+    WaitlistEntryResponse:
+      type: object
+      required: [id, status, position]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [queued, notified, expired, converted, cancelled] }
+        position: { type: integer }
+        reservationExpiresAt: { type: string, format: date-time, nullable: true }
+    ValidateDiscountRequest:
+      type: object
+      required: [code, eventId, ticketTierId, quantity]
+      properties:
+        code: { type: string }
+        eventId: { type: string, format: uuid }
+        ticketTierId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1 }
+    ValidateDiscountResponse:
+      type: object
+      required: [valid, discountAmountMinor]
+      properties:
+        valid: { type: boolean }
+        discountAmountMinor: { type: integer, minimum: 0 }
+        reason: { type: string, nullable: true }
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true

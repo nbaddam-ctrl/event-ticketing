@@ -31,7 +31,18 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] **React + TypeScript Frontend**: UI scope is implemented with typed React
+      components and no untyped production JavaScript paths.
+- [ ] **Node.js + Express Backend**: Backend scope is delivered through Express
+      REST endpoints with validated request/response schemas.
+- [ ] **Frontend/Backend Separation**: App boundaries remain isolated and all UI
+      server interaction occurs via explicit API clients.
+- [ ] **JWT Auth**: Protected endpoints include JWT validation, role/permission
+      rules, and explicit 401/403 behavior.
+- [ ] **REST Semantics**: Endpoint design and status codes follow REST method
+      intent and standardized error response contracts.
+- [ ] **Acyclic Dependencies**: Import and module dependency checks are defined to
+      prevent circular dependencies in frontend/backend/shared code.
 
 ## Project Structure
 

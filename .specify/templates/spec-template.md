@@ -100,6 +100,21 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+### Constitution Alignment *(mandatory)*
+
+- **CA-Frontend**: Confirm UI scope is implemented with React components in
+  TypeScript, including typed props/state and compile-time type safety.
+- **CA-Backend**: Confirm backend scope uses Node.js + Express REST endpoints and
+  defines request/response validation.
+- **CA-Separation**: Define clear frontend/backend boundaries and describe API
+  client interactions between applications.
+- **CA-Auth**: Document JWT authentication/authorization behavior, token handling,
+  and expected 401/403 scenarios.
+- **CA-REST**: Define RESTful resource design and required HTTP status codes for
+  success and error scenarios.
+- **CA-Dependencies**: State how the implementation prevents circular
+  dependencies across frontend, backend, and shared modules.
+
 ## Success Criteria *(mandatory)*
 
 <!--

@@ -1,0 +1,317 @@
+openapi: 3.0.3
+info:
+  title: Core UX Enhancements API
+  description: API changes for booking cancellation, event search/filter, and organizer event list
+  version: 0.1.0
+
+paths:
+  /bookings/{bookingId}/cancel:
+    post:
+      summary: Cancel a confirmed booking
+      description: |
+        Cancels the authenticated user's booking. Restores tier inventory,
+        creates a refund record, decrements discount usage (if applicable),
+        triggers waitlist promotion, and sends a notification.
+      tags: [Bookings]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking successfully cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookingId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [cancelled]
+                  refundId:
+                    type: string
+                    format: uuid
+                  refundAmountMinor:
+                    type: integer
+                    description: Refund amount in minor units (cents)
+                required: [bookingId, status, refundId, refundAmountMinor]
+        '400':
+          description: Invalid request (event already started, event cancelled)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Not authenticated
+        '404':
+          description: Booking not found or not owned by user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Booking already cancelled or refunded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /events:
+    get:
+      summary: Browse events with search and filters
+      description: |
+        Returns paginated published events. Supports text search (title/description),
+        date range filter, price range filter, and upcoming-only toggle.
+        All filters compose additively (AND logic).
+      tags: [Events]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: search
+          in: query
+          description: Text search on title and description (case-insensitive LIKE)
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          description: Filter events with start_at >= this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          description: Filter events with start_at <= this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: minPrice
+          in: query
+          description: Minimum tier price in minor units (cents)
+          schema:
+            type: integer
+            minimum: 0
+        - name: maxPrice
+          in: query
+          description: Maximum tier price in minor units (cents)
+          schema:
+            type: integer
+            minimum: 0
+        - name: includePast
+          in: query
+          description: Include past events (default false — only upcoming events shown)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Paginated event list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EventSummary'
+                  total:
+                    type: integer
+                    description: Total count matching current filters
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                required: [items, total, page, pageSize]
+
+  /events/mine:
+    get:
+      summary: List organizer's own events
+      description: |
+        Returns all events created by the authenticated organizer,
+        ordered by creation date (newest first), with ticket sales summary.
+      tags: [Organizer Events]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated organizer event list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrganizerEventSummary'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                required: [items, total, page, pageSize]
+        '401':
+          description: Not authenticated
+        '403':
+          description: Not an organizer or admin
+
+  /events/{eventId}:
+    get:
+      summary: Get event details (including cancelled events)
+      description: |
+        Returns event details with tiers. For cancelled events, includes
+        cancellation_reason and status='cancelled'. Booking/waitlist actions
+        should be hidden client-side for cancelled events.
+      tags: [Events]
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event details with tiers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetails'
+        '404':
+          description: Event not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    EventSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        venueName:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        status:
+          type: string
+          enum: [published, cancelled]
+      required: [id, title, venueName, startAt, status]
+
+    EventDetails:
+      allOf:
+        - $ref: '#/components/schemas/EventSummary'
+        - type: object
+          properties:
+            cancellationReason:
+              type: string
+              nullable: true
+            tiers:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  priceMinor:
+                    type: integer
+                  currency:
+                    type: string
+                  capacityLimit:
+                    type: integer
+                  remainingQuantity:
+                    type: integer
+                required: [id, name, priceMinor, currency, capacityLimit, remainingQuantity]
+
+    OrganizerEventSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        venueName:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, published, cancelled]
+        cancellationReason:
+          type: string
+          nullable: true
+        totalCapacity:
+          type: integer
+          description: Sum of all active tier capacities
+        totalSold:
+          type: integer
+          description: Sum of all active tier sold quantities
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, venueName, startAt, status, totalCapacity, totalSold, createdAt]

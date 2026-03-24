@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: Notifications API
+  version: 1.0.0
+  description: REST API contract for in-app notification management. Extends the Event Ticket Booking API.
+servers:
+  - url: https://api.example.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Notifications
+    description: In-app notification management for authenticated users
+paths:
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications for authenticated user
+      description: |
+        Returns a paginated list of notifications for the authenticated user,
+        ordered by creation time (newest first). Supports offset-based pagination.
+      operationId: listNotifications
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number (1-based)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: Number of notifications per page
+      responses:
+        '200':
+          description: Paginated notification list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get unread notification count
+      description: |
+        Returns the count of unread notifications for the authenticated user.
+        Designed for lightweight polling (every 30 seconds).
+      operationId: getUnreadCount
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{notificationId}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      description: |
+        Marks the specified notification as read. The notification must belong
+        to the authenticated user. Returns 404 if the notification does not
+        exist or does not belong to the user.
+      operationId: markNotificationRead
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Notification ID
+      responses:
+        '204':
+          description: Notification marked as read
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      description: |
+        Marks all unread notifications for the authenticated user as read in
+        a single atomic operation.
+      operationId: markAllNotificationsRead
+      responses:
+        '204':
+          description: All notifications marked as read
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login
+
+  schemas:
+    NotificationType:
+      type: string
+      enum:
+        - organizer_request_submitted
+        - organizer_request_approved
+        - organizer_request_rejected
+        - booking_confirmed
+        - event_cancelled
+        - waitlist_promoted
+        - waitlist_expired
+      description: Categorization of notification determining visual treatment and creation context
+
+    NotificationReferenceType:
+      type: string
+      enum:
+        - event
+        - booking
+        - organizer_request
+        - waitlist_entry
+      description: Type of entity referenced by the notification
+
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - type
+        - title
+        - message
+        - isRead
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique notification identifier
+        userId:
+          type: string
+          format: uuid
+          description: Recipient user ID
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        title:
+          type: string
+          maxLength: 200
+          description: Short human-readable title
+          example: "New Organizer Request"
+        message:
+          type: string
+          maxLength: 2000
+          description: Detailed notification body
+          example: "John Doe has submitted an organizer role request."
+        isRead:
+          type: boolean
+          description: Whether the notification has been read
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the related entity (event, booking, organizer request, etc.)
+        referenceType:
+          $ref: '#/components/schemas/NotificationReferenceType'
+          nullable: true
+        navigationPath:
+          type: string
+          nullable: true
+          description: Frontend route path for click-through navigation
+          example: "/admin/organizer-requests"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 creation timestamp
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: ISO 8601 timestamp when marked as read
+
+    NotificationListResponse:
+      type: object
+      required:
+        - notifications
+        - total
+        - page
+        - limit
+        - hasMore
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of notifications for the user
+        page:
+          type: integer
+          minimum: 1
+          description: Current page number
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          description: Items per page
+        hasMore:
+          type: boolean
+          description: Whether more pages are available
+
+    UnreadCountResponse:
+      type: object
+      required:
+        - unreadCount
+      properties:
+        unreadCount:
+          type: integer
+          minimum: 0
+          description: Number of unread notifications
+
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - INTERNAL_ERROR
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        correlationId:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            code: UNAUTHORIZED
+            message: "Authentication required"
+    NotFound:
+      description: Resource not found or not owned by user
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            code: NOT_FOUND
+            message: "Notification not found"
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            code: BAD_REQUEST
+            message: "Invalid pagination parameters"

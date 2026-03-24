@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background & Foreground */
+    --background: 240 20% 98%;
+    --foreground: 240 10% 4%;
+
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+
+    /* Primary (indigo-violet) */
+    --primary: 245 58% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+
+    /* Muted */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+
+    /* Accent */
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+
+    /* Destructive (red) */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Success (green) */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning (amber) */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Info (blue) */
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+
+    /* Ring (focus) */
+    --ring: 245 58% 52%;
+
+    /* Radius */
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 240 20% 98%;
+
+    --card: 240 10% 8%;
+    --card-foreground: 240 20% 98%;
+
+    --popover: 240 10% 8%;
+    --popover-foreground: 240 20% 98%;
+
+    --primary: 245 58% 62%;
+    --primary-foreground: 240 20% 98%;
+
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 240 5% 96%;
+
+    --muted: 240 6% 12%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 240 6% 15%;
+    --accent-foreground: 240 5% 96%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 86% 97%;
+
+    --success: 142 70% 45%;
+    --success-foreground: 142 80% 95%;
+
+    --warning: 48 96% 53%;
+    --warning-foreground: 38 92% 10%;
+
+    --info: 199 89% 58%;
+    --info-foreground: 199 89% 95%;
+
+    --border: 240 6% 18%;
+    --input: 240 6% 18%;
+
+    --ring: 245 58% 62%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    margin: 0;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Skeleton shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.15) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}

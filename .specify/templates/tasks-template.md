@@ -51,6 +51,7 @@ description: "Task list template for feature implementation"
 - [ ] T001 Create project structure per implementation plan
 - [ ] T002 Initialize [language] project with [framework] dependencies
 - [ ] T003 [P] Configure linting and formatting tools
+- [ ] T004 [P] Define API contracts (OpenAPI/schemas) before implementation
 
 ---
 
@@ -62,12 +63,16 @@ description: "Task list template for feature implementation"
 
 Examples of foundational tasks (adjust based on your project):
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T005 Setup database schema and migrations framework
+- [ ] T006 [P] Configure React + TypeScript frontend baseline (typed components,
+  linting, and strict TS settings)
+- [ ] T007 [P] Setup Node.js + Express REST routing and middleware structure
+- [ ] T008 [P] Implement JWT authentication/authorization middleware and tests
+- [ ] T009 Define REST error contract and HTTP status code handling strategy
+- [ ] T010 Enforce frontend/backend separation in folder structure and API client
+  boundaries
+- [ ] T011 Configure dependency-cycle detection and CI failure checks for
+  circular imports
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
