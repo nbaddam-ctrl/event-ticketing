@@ -116,8 +116,12 @@ export interface OrganizerEventListResult {
   pageSize: number;
 }
 
-export function listOrganizerEvents(page = 1, pageSize = 20) {
-  return apiRequest<OrganizerEventListResult>(`/events/mine?page=${page}&pageSize=${pageSize}`);
+export function listOrganizerEvents(page = 1, pageSize = 20, search?: string) {
+  let url = `/events/mine?page=${page}&pageSize=${pageSize}`;
+  if (search) {
+    url += `&search=${encodeURIComponent(search)}`;
+  }
+  return apiRequest<OrganizerEventListResult>(url);
 }
 
 export function getOrganizerEventDetails(eventId: string) {

@@ -177,13 +177,13 @@ export function cancelOrganizerEvent(userId: string, eventId: string, reason?: s
   };
 }
 
-export function listOrganizerEventsForUser(userId: string, page: number, pageSize: number) {
+export function listOrganizerEventsForUser(userId: string, page: number, pageSize: number, search?: string) {
   if (!isApprovedOrganizerOrAdmin(userId)) {
     throw new ApiError(403, 'FORBIDDEN', 'Organizer approval required');
   }
 
-  const items = listOrganizerEvents(userId, page, pageSize);
-  const total = countOrganizerEvents(userId);
+  const items = listOrganizerEvents(userId, page, pageSize, search);
+  const total = countOrganizerEvents(userId, search);
   return { items, total, page, pageSize };
 }
 
