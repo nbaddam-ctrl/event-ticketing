@@ -35,15 +35,20 @@ eventRoutes.get('/', (req, res, next) => {
 });
 
 // Organizer's own events — MUST be before /:eventId to avoid route collision
+const myEventsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().optional(),
+});
+
 eventRoutes.get(
   '/mine',
   requireAuth,
   requireRole(['organizer', 'admin']),
   (req: AuthenticatedRequest, res, next) => {
     try {
-      const page = Number(req.query.page ?? 1);
-      const pageSize = Number(req.query.pageSize ?? 20);
-      res.status(200).json(listOrganizerEventsForUser(req.auth!.sub, page, pageSize));
+      const query = myEventsQuerySchema.parse(req.query);
+      res.status(200).json(listOrganizerEventsForUser(req.auth!.sub, query.page, query.pageSize, query.search));
     } catch (error) {
       next(error);
     }

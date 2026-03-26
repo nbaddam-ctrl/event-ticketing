@@ -16,6 +16,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-26
 - SQLite via better-sqlite3 (file-based, `DATABASE_URL` env var) (005-qa-test-scenarios)
 - TypeScript 5.8, React 18 + React 18, React Router 6, Tailwind CSS, tailwindcss-animate, class-variance-authority, clsx, tailwind-merge, lucide-react, Framer Motion (new) (006-modern-ui-redesign)
 - localStorage (dark mode preference persistence only) (006-modern-ui-redesign)
+- TypeScript 5.8 (frontend + backend) + React 18, Express 4, Tailwind CSS, Zod, better-sqlite3 (008-tier-event-search)
+- SQLite via better-sqlite3 (existing — no schema changes) (008-tier-event-search)
 
 - TypeScript 5.x on Node.js 22 LTS + Fastify, Zod, Prisma ORM, OpenAPI tooling (master)
 
@@ -36,9 +38,9 @@ npm test; npm run lint
 TypeScript 5.x on Node.js 22 LTS: Follow standard conventions
 
 ## Recent Changes
+- 008-tier-event-search: Added TypeScript 5.8 (frontend + backend) + React 18, Express 4, Tailwind CSS, Zod, better-sqlite3
 - 006-modern-ui-redesign: Added TypeScript 5.8, React 18 + React 18, React Router 6, Tailwind CSS, tailwindcss-animate, class-variance-authority, clsx, tailwind-merge, lucide-react, Framer Motion (new)
 - 005-qa-test-scenarios: Added TypeScript 5.8, Node.js (ES2022 target) + Express 4.x, better-sqlite3, Zod, React 18, React Router 6
-- 004-core-ux-enhancements: Added TypeScript ^5.8.2 (backend ES2022/NodeNext, frontend ESNext/Bundler) + Express ^4.21.2, better-sqlite3 ^11.7.0, Zod ^3.24.2, jsonwebtoken ^9.0.2 (backend); React ^18.3.1, react-router-dom ^6.30.0, Vite ^6.2.1, Tailwind CSS ^3.4.19, lucide-react ^0.577.0 (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

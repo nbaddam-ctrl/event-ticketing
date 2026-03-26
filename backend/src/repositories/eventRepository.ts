@@ -125,8 +125,15 @@ export function countFilteredEvents(filters: EventFilters): number {
   return row.total;
 }
 
-export function listOrganizerEvents(organizerId: string, page: number, pageSize: number): OrganizerEventRow[] {
+export function listOrganizerEvents(organizerId: string, page: number, pageSize: number, search?: string): OrganizerEventRow[] {
   const offset = (page - 1) * pageSize;
+  const conditions = ['e.organizer_id = ?'];
+  const params: unknown[] = [organizerId];
+
+  if (search) {
+    conditions.push('(e.title LIKE ? OR e.description LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`);
+  }
 
   return db.prepare(`
     SELECT e.id,
@@ -142,17 +149,25 @@ export function listOrganizerEvents(organizerId: string, page: number, pageSize:
       e.created_at as createdAt
     FROM events e
     LEFT JOIN ticket_tiers t ON t.event_id = e.id AND t.status = 'active'
-    WHERE e.organizer_id = ?
+    WHERE ${conditions.join(' AND ')}
     GROUP BY e.id
     ORDER BY e.created_at DESC
     LIMIT ? OFFSET ?
-  `).all(organizerId, pageSize, offset) as OrganizerEventRow[];
+  `).all(...params, pageSize, offset) as OrganizerEventRow[];
 }
 
-export function countOrganizerEvents(organizerId: string): number {
+export function countOrganizerEvents(organizerId: string, search?: string): number {
+  const conditions = ['organizer_id = ?'];
+  const params: unknown[] = [organizerId];
+
+  if (search) {
+    conditions.push('(title LIKE ? OR description LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
   const row = db.prepare(`
-    SELECT COUNT(*) as total FROM events WHERE organizer_id = ?
-  `).get(organizerId) as { total: number };
+    SELECT COUNT(*) as total FROM events WHERE ${conditions.join(' AND ')}
+  `).get(...params) as { total: number };
 
   return row.total;
 }

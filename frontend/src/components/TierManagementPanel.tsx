@@ -1,15 +1,17 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import {
   getOrganizerEventDetails,
   updateEventTiers,
+  listOrganizerEvents,
   type TierDetails,
   type CreateTierPayload,
+  type OrganizerEventItem,
 } from '../services/organizerApi';
 import {
   Input, Button, Alert, AlertDescription, Select, Badge, Separator,
 } from '../components/ui';
 import { ConfirmationBanner } from '../components/app/ConfirmationBanner';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, Search, X, Loader2 } from 'lucide-react';
 
 const CURRENCY_OPTIONS = [
   { value: 'USD', label: 'USD ($)' },
@@ -56,18 +58,89 @@ export function TierManagementPanel() {
   const [message, setMessage] = useState('');
   const [loaded, setLoaded] = useState(false);
 
-  async function loadEvent() {
-    if (!eventId.trim()) { setError('Enter an Event ID'); return; }
-    setLoading(true); setError(''); setMessage(''); setLoaded(false);
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<OrganizerEventItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch results when debounced value changes
+  useEffect(() => {
+    if (!showDropdown) return;
+    let cancelled = false;
+    async function fetchResults() {
+      setSearchLoading(true);
+      try {
+        const result = await listOrganizerEvents(1, 5, debouncedSearch || undefined);
+        if (!cancelled) {
+          setSearchResults(result.items);
+        }
+      } catch {
+        if (!cancelled) setSearchResults([]);
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }
+    fetchResults();
+    return () => { cancelled = true; };
+  }, [debouncedSearch, showDropdown]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  async function selectEvent(item: OrganizerEventItem) {
+    setShowDropdown(false);
+    setSearchQuery(item.title);
+    setEventId(item.id);
+    setEventTitle(item.title);
+    setLoading(true);
+    setError('');
+    setMessage('');
+    setLoaded(false);
     try {
-      const event = await getOrganizerEventDetails(eventId.trim());
-      setEventTitle(event.title);
+      const event = await getOrganizerEventDetails(item.id);
       setTiers(event.tiers.map(tierToEditRow));
       setLoaded(true);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function clearSelection() {
+    setEventId('');
+    setEventTitle('');
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setTiers([]);
+    setLoaded(false);
+    setError('');
+    setMessage('');
+  }
+
+  function statusBadgeVariant(status: string) {
+    switch (status) {
+      case 'published': return 'success' as const;
+      case 'cancelled': return 'destructive' as const;
+      case 'draft': return 'secondary' as const;
+      default: return 'outline' as const;
     }
   }
 
@@ -149,21 +222,77 @@ export function TierManagementPanel() {
         </Alert>
       )}
 
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <Input
-            label="Event ID"
-            value={eventId}
-            onChange={(e) => setEventId(e.target.value)}
-            placeholder="Paste the event ID to manage its tiers"
+      <div ref={dropdownRef} className="relative">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (loaded) clearSelection();
+              setShowDropdown(true);
+            }}
+            onFocus={() => setShowDropdown(true)}
+            placeholder="Search events by name..."
+            className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-10 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={loading}
           />
+          {(searchQuery || loaded) && (
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <div className="self-end">
-          <Button onClick={loadEvent} loading={loading} variant="outline">
-            Load
-          </Button>
-        </div>
+
+        {showDropdown && !loaded && (
+          <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
+            {searchLoading ? (
+              <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Searching…
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                {searchQuery ? 'No events match your search.' : 'No events yet. Create an event first.'}
+              </div>
+            ) : (
+              <ul className="max-h-60 overflow-auto py-1">
+                {searchResults.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => selectEvent(item)}
+                      className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium">{item.title}</span>
+                        <Badge variant={statusBadgeVariant(item.status)} className="text-[10px] shrink-0">
+                          {item.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(item.startAt).toLocaleDateString()} · {item.venueName}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
+
+      {loading && (
+        <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading tiers…
+        </div>
+      )}
 
       {loaded && (
         <>
